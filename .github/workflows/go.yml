@@ -1,0 +1,59 @@
+name: Go
+
+on:
+  push:
+    branches:
+      - main
+      - lint
+  pull_request:
+    branches:
+      - main
+      - lint
+
+jobs:
+  ubuntu-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version: 1.19
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v5.0.0
+
+      - name: Run Go Fmt
+        run: |
+          files=$(go fmt ./...)
+          if [ -n "$files" ]; then
+            echo "Please run gofmt on these files ..."
+            echo "$files"
+            exit 1
+          fi
+
+      - name: Build
+        run: go build -v
+
+      - name: Run Unit Test
+        run: go test -count 1 -v ./...
+
+  windows-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4.1.4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version: 1.19
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v5.0.0
+
+      - name: Build
+        run: go build -v
+
+      - name: Run Unit Test
+        run: go test -count 1 -v ./...
