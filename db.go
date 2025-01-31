@@ -5,6 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/dgraph-io/badger/v4/y"
+	"github.com/gofrs/flock"
+	"github.com/google/uuid"
+	"github.com/rosedblabs/diskhash"
+	"github.com/rosedblabs/wal"
+	"golang.org/x/sync/errgroup"
 	"io"
 	"log"
 	"os"
@@ -15,13 +21,6 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	"github.com/dgraph-io/badger/v4/y"
-	"github.com/gofrs/flock"
-	"github.com/google/uuid"
-	"github.com/rosedblabs/diskhash"
-	"github.com/rosedblabs/wal"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -47,7 +46,7 @@ type DB struct {
 	fileLock         *flock.Flock         // fileLock to prevent multiple processes from using the same database directory.
 	flushChan        chan *memtable       // flushChan is used to notify the flush goroutine to flush memtable to disk.
 	flushLock        sync.Mutex           // flushLock is to prevent flush running while compaction doesn't occur.
-	compactChan      chan deprecatedState // compactChan is used to notify the shard need to compact.
+	compactChan      chan DeprecatedState // compactChan is used to notify the shard need to compact.
 	diskIO           *DiskIO              // monitoring the IO status of disks and allowing autoCompact when appropriate.
 	mu               sync.RWMutex
 	closed           bool
@@ -143,7 +142,7 @@ func Open(options Options) (*DB, error) {
 		flushChan:        make(chan *memtable, options.MemtableNums-1),
 		closeflushChan:   make(chan struct{}),
 		closeCompactChan: make(chan struct{}),
-		compactChan:      make(chan deprecatedState),
+		compactChan:      make(chan DeprecatedState),
 		diskIO:           diskIO,
 		options:          options,
 		batchPool:        sync.Pool{New: makeBatch},
@@ -531,15 +530,15 @@ func (db *DB) sendThresholdState() {
 		// check deprecatedtable size
 		lowerThreshold := uint32((float32)(db.vlog.totalNumber) * db.options.AdvisedCompactionRate)
 		upperThreshold := uint32((float32)(db.vlog.totalNumber) * db.options.ForceCompactionRate)
-		thresholdState := deprecatedState{
+		thresholdState := DeprecatedState{
 			thresholdState: ThresholdState(UnarriveThreshold),
 		}
 		if db.vlog.deprecatedNumber >= upperThreshold {
-			thresholdState = deprecatedState{
+			thresholdState = DeprecatedState{
 				thresholdState: ThresholdState(ArriveForceThreshold),
 			}
 		} else if db.vlog.deprecatedNumber > lowerThreshold {
-			thresholdState = deprecatedState{
+			thresholdState = DeprecatedState{
 				thresholdState: ThresholdState(ArriveAdvisedThreshold),
 			}
 		}
@@ -745,7 +744,7 @@ func (db *DB) Compact() error {
 			db.vlog.walFiles[part] = openVlogFile(part, valueLogFileExt)
 
 			// clean dpTable after compact
-			db.vlog.dpTables[part].clean()
+			db.vlog.dpTables[part].Clean()
 
 			return nil
 		})

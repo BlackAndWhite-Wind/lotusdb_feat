@@ -7,14 +7,14 @@ import (
 )
 
 func TestAddEntry(t *testing.T) {
-	dt := newDeprecatedTable(0)
+	dt := NewDeprecatedTable(0)
 	uidNumber := 3
 	count := 4
 
 	for i := 0; i < count; i++ {
 		for j := 0; j < uidNumber; j++ {
 			uid := uuid.New()
-			dt.addEntry(uid)
+			dt.AddEntry(uid)
 		}
 	}
 	if (int)(dt.size) != count*uidNumber {
@@ -23,15 +23,15 @@ func TestAddEntry(t *testing.T) {
 }
 
 func TestUuidExist(t *testing.T) {
-	dt := newDeprecatedTable(0)
+	dt := NewDeprecatedTable(0)
 	uidNumber := 3
 	count := 4
 
 	for i := 0; i < count; i++ {
 		for j := 0; j < uidNumber; j++ {
 			uid := uuid.New()
-			dt.addEntry(uid)
-			if !dt.existEntry(uid) {
+			dt.AddEntry(uid)
+			if !dt.ExistEntry(uid) {
 				t.Errorf("expected entry not exist!")
 			}
 		}

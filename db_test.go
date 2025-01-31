@@ -425,7 +425,7 @@ func TestDBFlushMemTables(t *testing.T) {
 				})
 			}
 			time.Sleep(1 * time.Second)
-			assert.True(t, true, db.vlog.dpTables[partition].existEntry(record.uid))
+			assert.True(t, true, db.vlog.dpTables[partition].ExistEntry(record.uid))
 		}
 	})
 }

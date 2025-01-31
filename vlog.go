@@ -3,7 +3,6 @@ package lotusdb
 import (
 	"context"
 	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/rosedblabs/wal"
 	"golang.org/x/sync/errgroup"
@@ -18,7 +17,7 @@ const (
 // https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf
 type valueLog struct {
 	walFiles         []*wal.WAL
-	dpTables         []*deprecatedtable
+	dpTables         []*DeprecatedTable
 	deprecatedNumber uint32
 	totalNumber      uint32
 	options          valueLogOptions
@@ -52,7 +51,7 @@ type valueLogOptions struct {
 // init deprecatedtable for every wal, we should build dpTable aftering compacting vlog.
 func openValueLog(options valueLogOptions) (*valueLog, error) {
 	var walFiles []*wal.WAL
-	var dpTables []*deprecatedtable
+	var dpTables []*DeprecatedTable
 	for i := 0; i < int(options.partitionNum); i++ {
 		vLogWal, err := wal.Open(wal.Options{
 			DirPath:        options.dirPath,
@@ -66,7 +65,7 @@ func openValueLog(options valueLogOptions) (*valueLog, error) {
 		}
 		walFiles = append(walFiles, vLogWal)
 		// init dpTable
-		dpTable := newDeprecatedTable(i)
+		dpTable := NewDeprecatedTable(i)
 		dpTables = append(dpTables, dpTable)
 	}
 
@@ -185,17 +184,17 @@ func (vlog *valueLog) getKeyPartition(key []byte) int {
 
 // we add middle layer of DeprecatedTable for interacting with autoCompact func.
 func (vlog *valueLog) setDeprecated(partition uint32, id uuid.UUID) {
-	vlog.dpTables[partition].addEntry(id)
+	vlog.dpTables[partition].AddEntry(id)
 	vlog.deprecatedNumber++
 }
 
 func (vlog *valueLog) isDeprecated(partition int, id uuid.UUID) bool {
-	return vlog.dpTables[partition].existEntry(id)
+	return vlog.dpTables[partition].ExistEntry(id)
 }
 
 func (vlog *valueLog) cleanDeprecatedTable() {
 	for i := 0; i < int(vlog.options.partitionNum); i++ {
-		vlog.dpTables[i].clean()
+		vlog.dpTables[i].Clean()
 	}
 	vlog.totalNumber -= vlog.deprecatedNumber
 	vlog.deprecatedNumber = 0
