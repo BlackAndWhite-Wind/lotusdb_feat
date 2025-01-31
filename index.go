@@ -1,18 +1,28 @@
 package lotusdb
 
 import (
+	"fmt"
 	"github.com/rosedblabs/diskhash"
 )
 
-// indexFileExt is the file extension for index files.
+// IndexType 定义了索引的类型
+type IndexType int8
+
+const (
+	BTree IndexType = iota
+	Hash
+)
+
+// indexOptions provides options for creating an index
+type indexOptions struct {
+	indexType       IndexType           // 索引类型
+	dirPath         string              // 索引的目录路径
+	partitionNum    int                 // 分区数
+	keyHashFunction func([]byte) uint64 // 用于分区的哈希函数
+}
+
 const indexFileExt = "INDEX.%d"
 
-// Index is the interface for index implementations.
-// An index is a key-value store that maps keys to chunk positions.
-// The index is used to find the chunk position of a key.
-//
-// Currently, the only implementation is a BoltDB index.
-// But you can implement your own index if you want.
 type Index interface {
 	// PutBatch 批量插入记录
 	PutBatch(keyPositions []*KeyPosition, matchKeyFunc ...diskhash.MatchKeyFunc) ([]*KeyPosition, error)
@@ -26,9 +36,13 @@ type Index interface {
 	Close() error
 }
 
-// open the specified index according to the index type
-// currently, we support two index types: BTree and Hash,
-// both of them are disk-based index.
+// getKeyPartition calculates the partition for a given key
+func (io *indexOptions) getKeyPartition(key []byte) int {
+	hashFn := io.keyHashFunction
+	return int(hashFn(key) % uint64(io.partitionNum))
+}
+
+// openIndex 打开指定类型的索引，目前支持 BTree 和 Hash 索引
 func openIndex(options indexOptions) (Index, error) {
 	switch options.indexType {
 	case BTree:
@@ -36,25 +50,6 @@ func openIndex(options indexOptions) (Index, error) {
 	case Hash:
 		return openHashIndex(options)
 	default:
-		panic("unknown index type")
+		return nil, fmt.Errorf("unknown index type: %d", options.indexType)
 	}
-}
-
-type IndexType int8
-
-const (
-	BTree IndexType = iota
-	Hash
-)
-
-type indexOptions struct {
-	indexType       IndexType
-	dirPath         string              // index directory path
-	partitionNum    int                 // index partition nums for sharding
-	keyHashFunction func([]byte) uint64 // hash function for sharding
-}
-
-func (io *indexOptions) getKeyPartition(key []byte) int {
-	hashFn := io.keyHashFunction
-	return int(hashFn(key) % uint64(io.partitionNum))
 }

@@ -2,7 +2,6 @@ package lotusdb
 
 import (
 	"encoding/binary"
-
 	"github.com/google/uuid"
 	"github.com/rosedblabs/wal"
 )
